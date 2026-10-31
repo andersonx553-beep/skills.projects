@@ -2,6 +2,30 @@
 
 Aplicação de gestão para administração e síndico, construída em Next.js, React, TypeScript e Supabase. O plano fornecido está em [docs/PLANO_ORIGINAL.md](docs/PLANO_ORIGINAL.md).
 
+## Versão HTML com todas as telas visíveis
+
+Abra `index.html` junto com a pasta `assets/`. A página não depende de npm, Next.js, CDN ou Supabase para apresentar as telas. Se o navegador/ambiente bloquear arquivos locais, sirva a pasta com `python3 -m http.server 4173` e abra pelo servidor HTTP.
+
+A versão HTML é uma **demonstração interativa separada**, com aviso permanente e dados fictícios. Todas as áreas estão disponíveis no menu: dashboard, solicitações, serviços, comunicados, documentos, checklists/modelos, aprovações, unidades, blocos, pessoas, vínculos, relatórios/auditoria e configurações. Há prévias de administração e síndico.
+
+Formulários, filtros, solicitação vinculada a serviço, conclusão/reabertura, aprovação por outro perfil, documento com arquivo local, checklist e CSV funcionam **apenas na memória da aba**. Nada é enviado ao Supabase, não há autenticação de produção nessa página e não há persistência após recarregar. Não inserir informações pessoais reais. Arquivos selecionados são temporários e acessíveis somente enquanto a aba existir; não constituem armazenamento privado de produção.
+
+A pasta pode ser publicada como site estático. No GitHub Pages, usar a branch `main` e a raiz `/` se a configuração atual for publicação a partir de branch; o arquivo `.nojekyll` acompanha a versão estática. Se Pages usar um workflow próprio, esse workflow deverá publicar `index.html` e `assets/`. Enviar o código ao GitHub não confirma sozinho que o Pages terminou a publicação.
+
+O app Next.js abaixo permanece a implementação destinada a persistência real. A versão HTML não substitui suas regras de servidor/RLS e não torna as migrações aplicadas.
+
+Para gerar um único HTML portátil, sem pasta de assets:
+
+```bash
+python3 scripts/build_html.py --output /tmp/central-condominio.html
+```
+
+Teste da versão HTML, com servidor estático em execução:
+
+```bash
+python3 scripts/smoke_html.py
+```
+
 ## O que foi implementado
 
 - Dashboard com indicadores clicáveis, distribuição por status, evolução do atendimento e rotina do dia.
@@ -95,3 +119,21 @@ Antes do piloto, aplicar a migração em um Supabase real e testar login, recupe
 - Não há pagamento, dados de custo/estoque ou integração externa. Não é uma entrega de financeiro/portaria/reservas; o escopo é a primeira fase do plano fornecido.
 
 As skills de frontend, React, Postgres, testes, Better Auth e Stripe foram instaladas no ambiente. Este projeto aplica Supabase Auth; instalar uma skill não instala o respectivo serviço nem obriga a usar duas soluções de autenticação.
+
+## CLI Supabase — projeto indicado
+
+Projeto informado pelo usuário: `jqdronfvtezjywarcphb`.
+
+`supabase init` foi executado e gerou a configuração local. A tentativa de `supabase link --project-ref jqdronfvtezjywarcphb` falhou por ausência de `SUPABASE_ACCESS_TOKEN`. Não foi estabelecido vínculo pela CLI nem executado `db push`. A conexão GitHub no painel Supabase é distinta da autenticação desta máquina.
+
+O requisito de token foi salvo nas configurações seguras do ambiente. Não enviar o valor por chat ou adicioná-lo ao Git. Após disponibilizar a autenticação, usar:
+
+```bash
+npx supabase link --project-ref jqdronfvtezjywarcphb
+npx supabase migration list
+npx supabase db push --dry-run
+# Depois de conferir a lista e o banco de destino:
+npx supabase db push
+```
+
+A migração `202610310001_central.sql` contém o schema. A migração `20261031225621_new-migration.sql` foi criada pelo comando solicitado e contém somente comentários, sem reaplicar o schema. A configuração local não inclui seed, não abre cadastro público e exige confirmação de e-mail. `db push` não deve ser usado para sobrescrever tabelas já existentes sem conferir o estado remoto. Nenhum `db reset`, reparo de histórico ou mudança remota de Auth foi executado.

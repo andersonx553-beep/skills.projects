@@ -23,3 +23,11 @@ O rascunho do ambiente contém `install_script`, `start_skill` e os requisitos d
 ## Capturas locais
 
 Geradas pelo teste de navegador em `/tmp/central-condominio-qa/desktop.png` e `/tmp/central-condominio-qa/mobile.png`. Mostram o aplicativo sem banco conectado, sem indicadores fabricados.
+
+## Complemento: versão HTML e CLI Supabase
+
+Foi adicionada uma demonstração HTML estática em `index.html`, `assets/central.css` e `assets/central.js`, com todas as áreas visíveis e operações fictícias em memória. Ela é independente da aplicação Next.js e não envia solicitações ao Supabase. A suíte `scripts/smoke_html.py` verifica navegação de todas as áreas, formulários, serviço vinculado, conclusão/reabertura, aprovação por outro perfil, documento com PDF local, checklist, exportação e layout móvel. As capturas ficam em `/tmp/central-html-qa/`.
+
+A abertura direta por `file://` foi bloqueada por política administrativa do navegador do ambiente. Esse cenário não foi validado; não houve tentativa de contornar a política. A mesma pasta foi validada pelo servidor HTTP estático na porta 4173.
+
+`supabase init` e `supabase migration new new-migration` foram executados. A migração adicional contém apenas comentários e não duplica o schema. `supabase link --project-ref jqdronfvtezjywarcphb` retornou `AccessTokenRequiredError`; `db push` não foi executado. O requisito `SUPABASE_ACCESS_TOKEN` foi salvo no rascunho seguro e adicionou o destino HTTPS `api.supabase.com`. A URL pública padrão do projeto foi salva como sugestão para `NEXT_PUBLIC_SUPABASE_URL`; isso não confirma conexão nem aplicação no runtime.

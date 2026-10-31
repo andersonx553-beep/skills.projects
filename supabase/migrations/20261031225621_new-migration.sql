@@ -1,0 +1,3 @@
+-- Created with `supabase migration new new-migration` at the user request.
+-- Intentionally no schema changes: the complete initial schema lives in
+-- 202610310001_central.sql. This file does not reapply or duplicate that schema.
