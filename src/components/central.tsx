@@ -166,7 +166,9 @@ function Modal({
   title,
   onClose,
   children,
+  variant = "dialog",
 }: {
+  variant?: "dialog" | "drawer";
   title: string;
   onClose: () => void;
   children: ReactNode;
@@ -211,12 +213,14 @@ function Modal({
     };
   }, [onClose]);
   return (
-    <div className="modal-backdrop">
+    <div
+      className={`modal-backdrop ${variant === "drawer" ? "drawer-backdrop" : ""}`}
+    >
       <section
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="modal"
+        className={`modal ${variant === "drawer" ? "drawer" : ""}`}
       >
         <header>
           <h2>{title}</h2>
@@ -415,7 +419,14 @@ export function Central() {
     (id ? "Conta " + id.slice(0, 8) : "Não atribuído");
   const navEntries = [
     { key: "dashboard", label: "Visão geral" },
-    ...modules.slice(0, 6),
+    ...[
+      "requests",
+      "services",
+      "checklist_runs",
+      "checklist_templates",
+      "announcements",
+      "documents",
+    ].map((key) => modules.find((m) => m.key === key)!),
     { key: "approvals", label: "Aprovações" },
     ...modules.slice(6),
     { key: "reports", label: "Relatórios e auditoria" },
@@ -449,12 +460,14 @@ export function Central() {
         />
       )}
       <aside className={`sidebar ${mobile ? "is-open" : ""}`}>
-        <a className="brand" href="/" aria-label="Central Condomínio, início">
-          <span className="brand-icon">
-            <Building2 size={26} />
-          </span>
-          <span>
-            central<span className="brand-sub">condomínio</span>
+        <a
+          className="brand"
+          href="/"
+          aria-label="AQUAVILLE, início"
+          title="Identificação tipográfica provisória; logo oficial pendente"
+        >
+          <span className="brand-wordmark">
+            AQUAVILLE<span className="brand-sub">Portal do condomínio</span>
           </span>
         </a>
         <div className="workspace">
@@ -468,7 +481,7 @@ export function Central() {
             </small>
           </div>
         </div>
-        <div className="nav-label">Gestão do condomínio</div>
+        <div className="nav-label">Área de gestão</div>
         <nav aria-label="Navegação principal">
           {navEntries
             .filter(
@@ -481,7 +494,27 @@ export function Central() {
               const Icon = icons[n.key] || ClipboardList;
               return (
                 <div key={n.key}>
-                  {i === 9 && <div className="nav-divider" />}
+                  {(
+                    {
+                      requests: "Operação",
+                      announcements: "Comunicação",
+                      units: "Condomínio",
+                      reports: "Gestão",
+                    } as Record<string, string>
+                  )[n.key] && (
+                    <div className="nav-group-title">
+                      {
+                        (
+                          {
+                            requests: "Operação",
+                            announcements: "Comunicação",
+                            units: "Condomínio",
+                            reports: "Gestão",
+                          } as Record<string, string>
+                        )[n.key]
+                      }
+                    </div>
+                  )}
                   <button
                     className={`nav-item ${view === n.key ? "active" : ""}`}
                     aria-current={view === n.key ? "page" : undefined}
@@ -533,6 +566,36 @@ export function Central() {
             <ChevronRight size={14} />
             <strong>{title}</strong>
           </div>
+          <form
+            className="topbar-search"
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const term = String(
+                new FormData(e.currentTarget).get("portalQuery") || "",
+              ).trim();
+              if (!term) return;
+              const target = modules.find(
+                (m) =>
+                  m.label.toLocaleLowerCase("pt-BR") ===
+                  term.toLocaleLowerCase("pt-BR"),
+              );
+              navigate(target ? target.key : "reports");
+              if (!target) {
+                setQuery(term);
+                setFrom("");
+                setTo("");
+              }
+            }}
+          >
+            <Search size={15} />
+            <input
+              aria-label="Buscar no portal"
+              name="portalQuery"
+              placeholder="Buscar no portal…"
+              autoComplete="off"
+            />
+          </form>
           <div className="account">
             {state.condos.length > 1 && (
               <select
@@ -587,7 +650,7 @@ export function Central() {
             )}
           </div>
         </header>
-        <main id="main" className="content">
+        <main id="main" className="content" tabIndex={-1}>
           <div className="page-heading">
             <div>
               <div className="page-context">
@@ -1320,7 +1383,7 @@ export function Central() {
             />
           )}
           <footer className="content-footer">
-            <span>Central Condomínio</span>
+            <span>AQUAVILLE · portal de gestão</span>
             <span>Organizar. Acompanhar. Comprovar.</span>
           </footer>
         </main>
@@ -1374,7 +1437,7 @@ export function Central() {
         />
       )}
       {selected && (
-        <Modal title={selected.title} onClose={closeDetail}>
+        <Modal title={selected.title} onClose={closeDetail} variant="drawer">
           <div className="detail-content">
             {error && (
               <div role="alert" className="alert error">

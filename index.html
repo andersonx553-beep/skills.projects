@@ -3,13 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#152f43" />
+    <meta name="theme-color" content="#6d3bf5" />
     <meta
       name="description"
       content="Central Condomínio: demonstração HTML responsiva de todas as telas de administração e síndico."
     />
-    <title>Central Condomínio | Todas as operações</title>
+    <title>AQUAVILLE | Portal de gestão</title>
     <link rel="stylesheet" href="assets/central.css" />
+    <link rel="stylesheet" href="assets/aquaville.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%279%27 fill=%27%23191722%27/%3E%3Ctext x=%2716%27 y=%2723%27 text-anchor=%27middle%27 font-size=%2723%27 font-family=%27Arial%27 fill=%27white%27%3EA%3C/text%3E%3C/svg%3E"
+    />
     <script defer src="assets/central.js"></script>
   </head>
   <body>
@@ -22,18 +27,23 @@
         hidden
       ></button>
       <aside class="sidebar" id="sidebar">
-        <a class="brand" href="#dashboard"
-          ><span class="brand-icon" data-icon="building"></span
-          ><span>central<span class="brand-sub">condomínio</span></span></a
+        <a
+          class="brand"
+          href="#dashboard"
+          aria-label="AQUAVILLE, início"
+          title="Identificação tipográfica provisória; logo oficial pendente"
+          ><span class="brand-wordmark"
+            >AQUAVILLE<span class="brand-sub">Portal do condomínio</span></span
+          ></a
         >
         <div class="workspace">
           <span class="workspace-avatar" data-icon="building"></span>
           <div>
-            <strong>Condomínio Demonstração</strong
+            <strong>AQUAVILLE · demonstração</strong
             ><small>Ambiente de apresentação</small>
           </div>
         </div>
-        <div class="nav-label">Todas as operações</div>
+        <div class="nav-label">Área de gestão</div>
         <nav id="navigation" aria-label="Navegação principal"></nav>
         <div class="sidebar-footer">
           <span class="security-icon" data-icon="shield"></span>
@@ -55,9 +65,18 @@
               aria-expanded="false"
             >
               <span data-icon="menu"></span></button
-            ><span>Central de operação</span><span data-icon="chevron"></span
             ><strong id="breadcrumb-title">Visão geral</strong>
           </div>
+          <form class="topbar-search" id="portal-search-form" role="search">
+            <span data-icon="search"></span
+            ><input
+              id="portal-search"
+              name="portal-search"
+              aria-label="Buscar no portal"
+              placeholder="Buscar no portal…"
+              autocomplete="off"
+            /><kbd>/</kbd>
+          </form>
           <div class="account">
             <label class="profile-switch"
               >Prévia de perfil<select
@@ -98,7 +117,7 @@
           </div>
           <div id="screen"></div>
           <footer class="content-footer">
-            <span>Central Condomínio · HTML responsivo</span
+            <span>AQUAVILLE · portal de gestão</span
             ><span>Organizar. Acompanhar. Comprovar.</span>
           </footer>
         </main>

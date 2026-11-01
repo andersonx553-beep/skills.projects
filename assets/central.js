@@ -206,6 +206,7 @@
     serial = 100;
   let modalContext = null;
   const objectUrls = new Set();
+  let activityMode = "requests";
   const actor = () => (profile === "manager" ? "manager" : "admin");
   function snapshot(r) {
     r.versions.push({
@@ -548,6 +549,54 @@
       "op1",
       day(),
     );
+    const extraRequests = [
+      ["r5", "Infiltração na garagem", "open", "urgent", "op1", "u101", 0],
+      ["r6", "Fechadura do bicicletário", "open", "normal", "op1", "u201", 0],
+      ["r7", "Sinalização de acesso", "in_progress", "high", "op1", "u202", -1],
+      [
+        "r8",
+        "Atualização de contato",
+        "waiting",
+        "normal",
+        "admin",
+        "u102",
+        -1,
+      ],
+      ["r9", "Limpeza do hall", "resolved", "low", "op2", "u101", -1],
+      ["r10", "Lâmpada do corredor", "open", "high", "op1", "u201", -2],
+      ["r11", "Interfone sem áudio", "resolved", "normal", "op1", "u202", -3],
+      ["r12", "Solicitação duplicada", "cancelled", "low", "admin", "u102", -4],
+    ];
+    for (const [
+      id,
+      title,
+      status,
+      priority,
+      assignedTo,
+      unit,
+      offset,
+    ] of extraRequests) {
+      const r = add(
+        id,
+        "requests",
+        title,
+        status,
+        {
+          description:
+            "Registro fictício para explorar a organização da gestão. Não representa ocorrência real do AQUAVILLE.",
+          priority,
+          unit_id: unit,
+          category: "Operação",
+        },
+        assignedTo,
+        day(1),
+      );
+      r.created = day(offset) + "T12:00:00Z";
+    }
+    ["r1", "r2", "r3", "r4"].forEach((id, index) => {
+      state.records.find((r) => r.id === id).created =
+        day(-6 + index * 2) + "T12:00:00Z";
+    });
     state.audit = state.audit.slice(0, 12);
     profile = "admin";
     $("#profile").value = "admin";
@@ -575,49 +624,131 @@
     $("#dialog-title").textContent = title;
     $("#dialog-body").innerHTML = body;
     modalContext = context;
+    $("#dialog").dataset.mode = context.type || "dialog";
     if (!$("#dialog").open) $("#dialog").showModal();
   }
   const notice =
     '<div class="callout">Demonstração: nada será enviado ou gravado no Supabase. Não use informações pessoais reais.</div>';
+  function writeLocation(replace = false) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries({
+      status: filter,
+      q: search,
+      assigned,
+      block: blockFilter,
+      from,
+      to,
+    }))
+      if (value) params.set(key, value);
+    const hash = "#" + current + (params.size ? "?" + params : "");
+    if (location.hash !== hash)
+      history[replace ? "replaceState" : "pushState"](null, "", hash);
+  }
+  function restoreLocation() {
+    const [route, query] = location.hash.slice(1).split("?"),
+      params = new URLSearchParams(query || "");
+    current = [
+      "dashboard",
+      "approvals",
+      "reports",
+      "settings",
+      "materials",
+      ...modules.map((m) => m.key),
+    ].includes(route)
+      ? route
+      : "dashboard";
+    filter = params.get("status") || "";
+    search = params.get("q") || "";
+    assigned = params.get("assigned") || "";
+    blockFilter = params.get("block") || "";
+    from = params.get("from") || "";
+    to = params.get("to") || "";
+    setMenu(false);
+    closeModal();
+    render();
+  }
   function go(view, status = "") {
-    const exists =
-      view === "dashboard" ||
-      view === "approvals" ||
-      view === "reports" ||
-      view === "settings" ||
-      view === "materials" ||
-      modules.some((m) => m.key === view);
-    current = exists ? view : "dashboard";
+    current = [
+      "dashboard",
+      "approvals",
+      "reports",
+      "settings",
+      "materials",
+      ...modules.map((m) => m.key),
+    ].includes(view)
+      ? view
+      : "dashboard";
     filter = status;
     search = "";
     assigned = "";
     blockFilter = "";
     from = "";
     to = "";
-    const hash =
-      "#" + current + (status ? "?status=" + encodeURIComponent(status) : "");
-    history.replaceState(null, "", hash);
+    writeLocation();
     setMenu(false);
     closeModal();
     render();
     $("#page-title").scrollIntoView({ block: "nearest" });
   }
   function nav() {
-    const entries = [
-      { key: "dashboard", label: "Visão geral", icon: "dashboard" },
-      ...modules.slice(0, 6),
-      { key: "approvals", label: "Aprovações", icon: "shield" },
-      ...modules.slice(6),
-      { key: "reports", label: "Relatórios e auditoria", icon: "report" },
-      { key: "materials", label: "Custos e materiais", icon: "building" },
-      { key: "settings", label: "Configurações", icon: "settings" },
+    const entry = (key) =>
+      modules.find((m) => m.key === key) ||
+      {
+        dashboard: {
+          key: "dashboard",
+          label: "Visão geral",
+          icon: "dashboard",
+        },
+        approvals: { key: "approvals", label: "Aprovações", icon: "shield" },
+        reports: {
+          key: "reports",
+          label: "Relatórios e auditoria",
+          icon: "report",
+        },
+        materials: {
+          key: "materials",
+          label: "Custos e materiais",
+          icon: "building",
+        },
+        settings: { key: "settings", label: "Configurações", icon: "settings" },
+      }[key];
+    const groups = [
+      ["", ["dashboard"]],
+      [
+        "Operação",
+        ["requests", "services", "checklist_runs", "checklist_templates"],
+      ],
+      ["Comunicação", ["announcements", "documents", "approvals"]],
+      ["Condomínio", ["units", "blocks", "people", "unit_memberships"]],
+      ["Gestão", ["reports", "materials", "settings"]],
     ];
-    $("#navigation").innerHTML = entries
+    $("#navigation").innerHTML = groups
       .map(
-        (m) =>
-          `<button type="button" class="nav-item ${current === m.key ? "active" : ""}" data-view="${m.key}" ${current === m.key ? 'aria-current="page"' : ""}>${icon(m.icon)}<span>${m.label}</span>${m.key === "materials" ? '<span class="soon">Futuro</span>' : m.key === "approvals" ? `<span class="nav-count">${state.approvals.filter((a) => a.status === "pending").length}</span>` : ""}</button>`,
+        ([title, keys]) =>
+          (title ? `<div class="nav-group-title">${title}</div>` : "") +
+          keys
+            .map((key) => {
+              const m = entry(key);
+              return `<button type="button" class="nav-item ${current === key ? "active" : ""}" data-view="${key}" ${current === key ? 'aria-current="page"' : ""}>${icon(m.icon)}<span>${m.label}</span>${key === "approvals" ? `<span class="nav-count">${state.approvals.filter((a) => a.status === "pending").length}</span>` : key === "materials" ? '<span class="soon">Futuro</span>' : ""}</button>`;
+            })
+            .join(""),
       )
       .join("");
+  }
+  function statusTabs(kind) {
+    if (
+      ![
+        "requests",
+        "services",
+        "announcements",
+        "documents",
+        "checklist_runs",
+      ].includes(kind)
+    )
+      return "";
+    const records = state.records.filter((r) => r.kind === kind),
+      statuses = [...new Set(records.map((r) => r.status))];
+    return `<div class="status-tabs" role="group" aria-label="Visão por status"><button class="status-tab ${!filter ? "active" : ""}" data-status-filter="" aria-pressed="${!filter}">Todos<span>${records.length}</span></button>${statuses.map((status) => `<button class="status-tab ${filter === status ? "active" : ""}" data-status-filter="${status}" aria-pressed="${filter === status}">${labels[status]}<span>${records.filter((r) => r.status === status).length}</span></button>`).join("")}</div>`;
   }
   function option(value, label, selected) {
     return `<option value="${esc(value)}" ${String(value) === String(selected) ? "selected" : ""}>${esc(label)}</option>`;
@@ -660,9 +791,43 @@
   function table(rows) {
     return `<div class="table-scroll table-desktop"><table><thead><tr><th>Registro</th><th>Status</th><th>Responsável</th><th>Prazo</th><th><span class="sr-only">Detalhes</span></th></tr></thead><tbody>${rows.map((r) => `<tr><td><button class="table-title" data-open="${esc(r.id)}">${esc(r.title)}<small>${esc(modules.find((m) => m.key === r.kind)?.label)} · ${esc(r.id.toUpperCase())}</small></button></td><td>${badge(r.status)}</td><td>${esc(memberName(r.assigned))}</td><td>${esc(displayDate(r.due))}</td><td><button class="icon-button" data-open="${esc(r.id)}" aria-label="Detalhes de ${esc(r.title)}">${icon("chevron", 17)}</button></td></tr>`).join("")}</tbody></table></div><div class="mobile-card-list">${rows.map((r) => `<button class="mobile-record" data-open="${esc(r.id)}"><div>${badge(r.status)}${icon("chevron", 16)}</div><strong>${esc(r.title)}</strong><div><small>${esc(memberName(r.assigned))}</small><small>${esc(displayDate(r.due))}</small></div></button>`).join("")}</div>${rows.length ? "" : empty("Nenhum registro encontrado", "Ajuste os filtros ou crie um registro de demonstração.")}`;
   }
+  function activityChart(records) {
+    const data = Array.from({ length: 7 }, (_, index) => {
+      const key = day(index - 6);
+      return {
+        key,
+        count: records.filter(
+          (r) =>
+            dayFormat.format(
+              new Date(activityMode === "services" ? r.updated : r.created),
+            ) === key &&
+            (activityMode !== "services" || r.status === "done"),
+        ).length,
+      };
+    });
+    const max = Math.max(1, ...data.map((d) => d.count)),
+      total = data.reduce((sum, d) => sum + d.count, 0);
+    return `<section class="panel activity-panel"><div class="panel-heading"><div><h2>Atividade do condomínio</h2><p>${activityMode === "services" ? "Serviços concluídos" : "Solicitações recebidas"} nos últimos 7 dias · dados de demonstração</p></div><span class="subtle-tag">${total} registros</span></div><div class="activity-tabs" role="group" aria-label="Série de atividade"><button class="${activityMode === "requests" ? "active" : ""}" data-activity="requests" aria-pressed="${activityMode === "requests"}">Solicitações</button><button class="${activityMode === "services" ? "active" : ""}" data-activity="services" aria-pressed="${activityMode === "services"}">Serviços concluídos</button></div><div class="activity-chart"><svg viewBox="0 0 620 200" role="img" aria-label="${activityMode === "services" ? "Serviços concluídos" : "Solicitações recebidas"} por dia: ${data.map((d) => d.key + ": " + d.count).join("; ")}">${[
+      0, 1, 2, 3,
+    ]
+      .map((n) => {
+        const y = 20 + n * 45;
+        return `<line class="chart-rule" x1="30" y1="${y}" x2="615" y2="${y}"/><text class="axis-label" x="8" y="${y + 4}">${Math.round(max * (1 - n / 3))}</text>`;
+      })
+      .join("")}${data
+      .map((d, i) => {
+        const x = 46 + i * 80,
+          h = (d.count / max) * 135;
+        return `<rect x="${x}" y="${155 - h}" width="47" height="${h}" rx="7" fill="${i === data.length - 1 ? "#6d3bf5" : "#c6b3ea"}"/>${d.count ? `<text x="${x + 23.5}" y="${Math.max(13, 150 - h)}" text-anchor="middle" class="axis-label">${d.count}</text>` : ""}<text x="${x + 23.5}" y="182" text-anchor="middle" class="axis-label">${d.key.slice(8)}/${d.key.slice(5, 7)}</text>`;
+      })
+      .join(
+        "",
+      )}</svg></div><div class="activity-caption"><span><i class="legend-dot"></i>${activityMode === "services" ? "Concluídos" : "Recebidas"}</span><span>Contagem dos registros · sem projeções</span></div></section>`;
+  }
   function dashboard() {
     const requests = state.records.filter((r) => r.kind === "requests"),
-      services = state.records.filter((r) => r.kind === "services");
+      services = state.records.filter((r) => r.kind === "services"),
+      announcements = state.records.filter((r) => r.kind === "announcements");
     const cards = [
       [
         "Solicitações abertas",
@@ -705,10 +870,18 @@
         "violet",
       ],
     ];
+    const priorities = requests
+      .filter((r) => !["resolved", "cancelled"].includes(r.status))
+      .sort(
+        (a, b) =>
+          ["urgent", "high", "normal", "low"].indexOf(a.data.priority) -
+          ["urgent", "high", "normal", "low"].indexOf(b.data.priority),
+      )
+      .slice(0, 4);
     const active = services.filter(
       (r) => !["done", "cancelled"].includes(r.status),
     );
-    return `<div class="section-heading"><h2>O que precisa da sua atenção</h2><span>Exemplos fictícios · ${displayDate(today())}</span></div><div class="metrics">${cards.map(([label, value, target, status, i, tone]) => `<button class="metric ${tone}" data-view="${target}" data-filter="${status}"><span class="metric-top">${label}${icon(i)}</span><strong>${value}</strong><span class="metric-bottom">Consultar registros ${icon("arrow", 15)}</span></button>`).join("")}</div><div class="dashboard-grid"><section class="panel"><div class="panel-heading"><div><h2>Solicitações por status</h2><p>Distribuição dos registros de demonstração</p></div><span class="subtle-tag">Atendimento</span></div><div class="status-chart">${[
+    return `<div class="section-heading"><h2>Seu condomínio em perspectiva</h2><span>${displayDate(today())} · demonstração</span></div><div class="metrics">${cards.map(([label, value, target, status, i, tone]) => `<button class="metric ${tone}" data-view="${target}" data-filter="${status}"><span class="metric-top">${label}${icon(i)}</span><strong>${value}</strong><span class="metric-bottom">Consultar registros ${icon("arrow", 14)}</span></button>`).join("")}</div><div class="dashboard-grid">${activityChart(activityMode === "services" ? services : requests)}<section class="panel daily-panel"><div class="panel-heading"><div><h2>Precisam de atenção</h2><p>Prioridades e próximos retornos</p></div><span class="subtle-tag">${priorities.length} itens</span></div>${priorities.map((r) => `<button class="queue-priority" data-open="${r.id}"><span class="queue-label"><i class="queue-dot"></i><span><strong>${esc(r.title)}</strong><small>${esc(memberName(r.assigned))}</small></span></span><span>${badge(r.data.priority || "normal")}</span></button>`).join("") || empty("Tudo em dia", "Não há solicitações pendentes.", "checklist")}<button class="text-button" data-view="requests">Ver todos os atendimentos ${icon("chevron", 15)}</button></section></div><div class="dashboard-grid"><section class="panel"><div class="panel-heading"><div><h2>Solicitações por status</h2><p>Uma visão do atendimento</p></div><span class="subtle-tag">${requests.length} solicitações</span></div><div class="status-chart">${[
       "open",
       "in_progress",
       "waiting",
@@ -721,37 +894,7 @@
       })
       .join(
         "",
-      )}</div></section><section class="panel daily-panel"><div class="panel-heading"><div><h2>A operação de hoje</h2><p>${displayDate(today())} · exemplos de rotina</p></div><span class="daily-icon">${icon("checklist")}</span></div><div class="daily-stat"><span>Serviços com prazo hoje</span><strong>${services.filter((r) => r.due === today()).length}</strong></div><div class="daily-stat"><span>Serviços concluídos hoje</span><strong>${services.filter((r) => r.status === "done" && dayFormat.format(new Date(r.updated)) === today()).length}</strong></div><div class="daily-stat"><span>Checklists pendentes hoje</span><strong>${state.records.filter((r) => r.kind === "checklist_runs" && r.due === today() && r.status !== "done").length}</strong></div><button class="text-button" data-view="checklist_runs">Abrir checklist diário ${icon("chevron", 16)}</button></section></div><div class="dashboard-links">${[
-      ["requests", "Nova solicitação", "Registre e acompanhe um atendimento."],
-      [
-        "services",
-        "Organizar serviços",
-        "Veja prazos e responsáveis no quadro.",
-      ],
-      [
-        "announcements",
-        "Comunicar com clareza",
-        "Confira o público e as publicações.",
-      ],
-    ]
-      .map(
-        ([v, t, d]) =>
-          `<button class="shortcut" data-view="${v}">${icon(modules.find((m) => m.key === v).icon, 24)}<span><strong>${t}</strong><small>${d}</small></span><span>${icon("chevron", 17)}</span></button>`,
-      )
-      .join(
-        "",
-      )}</div><section class="panel"><div class="panel-heading"><div><h2>Próximos passos da gestão</h2><p>Todos os serviços abaixo são exemplos para explorar a interface.</p></div><button class="text-button" data-view="services">Ver quadro ${icon("chevron", 15)}</button></div>${table(active)}</section><section class="panel section-space"><div class="panel-heading"><div><h2>Evolução do atendimento</h2><p>Solicitações de demonstração por dia de criação</p></div></div><div class="trend-chart">${Array.from(
-      { length: 7 },
-      (_, n) => {
-        const key = day(n - 6),
-          count = requests.filter(
-            (r) => dayFormat.format(new Date(r.created)) === key,
-          ).length;
-        return `<div><strong>${count}</strong><span class="trend-track"><span style="height:${Math.min(100, (count / Math.max(1, requests.length)) * 100)}%"></span></span><small>${key.slice(8)}/${key.slice(5, 7)}</small></div>`;
-      },
-    ).join(
-      "",
-    )}</div></section><div class="footnote">${icon("shield", 16)}Nenhum envio externo, pagamento ou alteração no banco é realizado nesta versão HTML.</div>`;
+      )}</div></section><section class="panel daily-panel"><div class="panel-heading"><div><h2>A operação de hoje</h2><p>${displayDate(today())} · acompanhamento diário</p></div><span class="daily-icon">${icon("checklist")}</span></div><div class="daily-stat"><span>Serviços com prazo hoje</span><strong>${services.filter((r) => r.due === today()).length}</strong></div><div class="daily-stat"><span>Serviços concluídos hoje</span><strong>${services.filter((r) => r.status === "done" && dayFormat.format(new Date(r.updated)) === today()).length}</strong></div><div class="daily-stat"><span>Comunicados em rascunho</span><strong>${announcements.filter((r) => r.status === "draft").length}</strong></div><button class="text-button" data-view="announcements" data-filter="draft">Conferir publicações pendentes ${icon("chevron", 15)}</button></section></div><section class="panel"><div class="panel-heading"><div><h2>Serviços em acompanhamento</h2><p>Responsáveis, prazos e evidências de cada execução.</p></div><button class="text-button" data-view="services">Ver quadro ${icon("chevron", 15)}</button></div>${table(active)}</section><div class="footnote">${icon("shield", 15)}AQUAVILLE · demonstração com dados fictícios. Nenhum envio externo ou alteração no banco é realizado.</div>`;
   }
   function listScreen() {
     const rows = filtered(current);
@@ -793,7 +936,9 @@
         )}</div>${rows.length ? "" : empty("Nenhum checklist encontrado", "Gere a execução a partir de um modelo de checklist.", "checklist")}`;
     } else
       body = `<section class="panel"><div class="list-summary"><strong>${rows.length} registros</strong><span>Selecione para ver detalhes</span></div>${table(rows)}</section>`;
-    return filterControls() + `<div id="results">${body}</div>`;
+    return (
+      statusTabs(current) + filterControls() + `<div id="results">${body}</div>`
+    );
   }
   function approvalScreen() {
     const pending = state.approvals.filter((a) => a.status === "pending");
@@ -1593,6 +1738,17 @@
     const el = e.target.closest("button,[data-view]");
     if (!el) return;
     const d = el.dataset;
+    if ("statusFilter" in d) {
+      filter = d.statusFilter;
+      writeLocation(true);
+      render();
+      return;
+    }
+    if (d.activity) {
+      activityMode = d.activity;
+      render();
+      return;
+    }
     if (el.id === "menu") {
       setMenu(!$("#sidebar").classList.contains("is-open"));
       return;
@@ -1636,6 +1792,7 @@
       blockFilter = "";
       from = "";
       to = "";
+      writeLocation(true);
       render();
       return;
     }
@@ -1703,6 +1860,24 @@
     e.preventDefault();
     const form = e.target;
     try {
+      if (form.id === "portal-search-form") {
+        const value = String(
+          new FormData(form).get("portal-search") || "",
+        ).trim();
+        if (!value) return;
+        const target = modules.find(
+          (m) =>
+            m.label.toLocaleLowerCase("pt-BR") ===
+            value.toLocaleLowerCase("pt-BR"),
+        );
+        go(target ? target.key : "reports");
+        if (!target) {
+          search = value;
+          writeLocation(true);
+          render();
+        }
+        return;
+      }
       if (form.id === "record-form") {
         if (!canEdit()) throw new Error("Edição não concedida nesta prévia.");
         saveForm(form);
@@ -1790,6 +1965,7 @@
     if (e.target.id === "search") {
       const pos = e.target.selectionStart;
       search = e.target.value;
+      writeLocation(true);
       render();
       const input = $("#search");
       input.focus();
@@ -1817,6 +1993,7 @@
       if (el.id === "block-filter") blockFilter = el.value;
       if (el.id === "from-filter") from = el.value;
       if (el.id === "to-filter") to = el.value;
+      writeLocation(true);
       render();
       return;
     }
@@ -1824,14 +2001,25 @@
       $("#audience-options").innerHTML = audienceOptions(el.value);
   });
   $("#dialog").addEventListener("close", () => (modalContext = null));
-  window.addEventListener("hashchange", () => {
-    const [view, qs] = location.hash.slice(1).split("?");
-    go(view || "dashboard", new URLSearchParams(qs || "").get("status") || "");
+  $("a.skip-link").addEventListener("click", (event) => {
+    event.preventDefault();
+    $("#main").focus();
+    $("#main").scrollIntoView({ block: "start" });
+  });
+  window.addEventListener("hashchange", restoreLocation);
+  window.addEventListener("popstate", restoreLocation);
+  document.addEventListener("keydown", (event) => {
+    if (
+      event.key === "/" &&
+      !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)
+    ) {
+      event.preventDefault();
+      $("#portal-search").focus();
+    }
   });
   window.addEventListener("pagehide", () => {
     for (const url of objectUrls) URL.revokeObjectURL(url);
   });
   seed();
-  const [initial, qs] = location.hash.slice(1).split("?");
-  go(initial || "dashboard", new URLSearchParams(qs || "").get("status") || "");
+  restoreLocation();
 })();
