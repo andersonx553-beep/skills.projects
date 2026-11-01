@@ -603,21 +603,24 @@
     $("#page-title").scrollIntoView({ block: "nearest" });
   }
   function nav() {
-    const entries = [
-      { key: "dashboard", label: "Visão geral", icon: "dashboard" },
-      ...modules.slice(0, 6),
-      { key: "approvals", label: "Aprovações", icon: "shield" },
-      ...modules.slice(6),
-      { key: "reports", label: "Relatórios e auditoria", icon: "report" },
-      { key: "materials", label: "Custos e materiais", icon: "building" },
-      { key: "settings", label: "Configurações", icon: "settings" },
+    const groups = [
+      { label: "Início", items: [{ key: "dashboard", label: "Visão geral", icon: "dashboard" }] },
+      { label: "Operação diária", items: modules.filter((m) => ["requests", "services", "checklist_runs", "checklist_templates"].includes(m.key)) },
+      { label: "Comunicação", items: modules.filter((m) => ["announcements", "documents"].includes(m.key)) },
+      { label: "Gestão", items: [
+        { key: "approvals", label: "Aprovações", icon: "shield" },
+        { key: "reports", label: "Relatórios e auditoria", icon: "report" },
+        { key: "materials", label: "Custos e materiais", icon: "building" },
+      ] },
+      { label: "Cadastros e acesso", items: [
+        ...modules.filter((m) => ["units", "blocks", "people", "unit_memberships"].includes(m.key)),
+        { key: "settings", label: "Configurações", icon: "settings" },
+      ] },
     ];
-    $("#navigation").innerHTML = entries
-      .map(
-        (m) =>
-          `<button type="button" class="nav-item ${current === m.key ? "active" : ""}" data-view="${m.key}" ${current === m.key ? 'aria-current="page"' : ""}>${icon(m.icon)}<span>${m.label}</span>${m.key === "materials" ? '<span class="soon">Futuro</span>' : m.key === "approvals" ? `<span class="nav-count">${state.approvals.filter((a) => a.status === "pending").length}</span>` : ""}</button>`,
-      )
-      .join("");
+    $("#navigation").innerHTML = groups.map((group) =>
+      `<div class="nav-group"><div class="nav-group-label">${group.label}</div>${group.items.map((m) =>
+        `<button type="button" class="nav-item ${current === m.key ? "active" : ""}" data-view="${m.key}" ${current === m.key ? 'aria-current="page"' : ""}>${icon(m.icon)}<span>${m.label}</span>${m.key === "materials" ? '<span class="soon">Futuro</span>' : m.key === "approvals" ? `<span class="nav-count">${state.approvals.filter((a) => a.status === "pending").length}</span>` : ""}</button>`,
+      ).join("")}</div>`).join("");
   }
   function option(value, label, selected) {
     return `<option value="${esc(value)}" ${String(value) === String(selected) ? "selected" : ""}>${esc(label)}</option>`;
